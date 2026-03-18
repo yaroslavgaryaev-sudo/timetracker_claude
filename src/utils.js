@@ -30,9 +30,10 @@ export function startOfWeek(d) {
   return x
 }
 
-export function fmtDayHeader(d) {
+export function fmtDayHeader(d, locale = 'ru') {
   const opts = { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }
-  return d.toLocaleDateString('ru-RU', opts).replace(',', '')
+  const lcMap = { ru: 'ru-RU', en: 'en-GB' }
+  return d.toLocaleDateString(lcMap[locale] || locale, opts).replace(',', '')
 }
 
 export function slotToLabel(slotIndex) {
@@ -54,12 +55,41 @@ export function entryKey(dateISO, slot) {
   return `${dateISO}|${slot}`
 }
 
-export const ALLOWED_PROJECT_COLORS = [
-  '#FF0000', '#FF9300', '#FFFF00', '#00FF00', '#00AB49',
-  '#FFFFFF', '#FF00FF', '#A800FF', '#3388EF', '#00FFFF',
-  '#00C1C8', '#666666'
-]
+// ── Project colour palette ────────────────────────────────────────────────────
+// To change colours: edit only the hex values here. Keys never change.
+export const PROJECT_PALETTE = {
+  'oat':     '#EBDCC7',
+  'cream':   '#EBDEA6',
+  'sage':    '#BBC5AB',
+  'peach':   '#F09E7D',
+  'honey':   '#F8991D',
+  'spicy':   '#FC4024',
+  'femme':   '#EF4782',
+  'dessert': '#8552A0',
+  'butch':   '#9F8D32',
+  'basil':   '#00784F',
+  'proud':   '#00859C',
+  'pine':    '#004242',
+}
 
+// Ordered list of keys for ColorPicker
+export const PALETTE_KEYS = Object.keys(PROJECT_PALETTE)
+
+// Lookup helpers
+export function colorKeyToHex(key) {
+  return PROJECT_PALETTE[key] ?? PROJECT_PALETTE['gray']
+}
+
+export function hexToColorKey(hex) {
+  if (!hex) return null
+  const norm = hex.trim().toUpperCase()
+  const entry = Object.entries(PROJECT_PALETTE).find(
+    ([, v]) => v.toUpperCase() === norm
+  )
+  return entry ? entry[0] : null
+}
+
+// Legacy: kept for backward-compat during read from DB (color_hex column)
 export function normalizeHexColor(v) {
   if (!v) return null
   let s = String(v).trim().toUpperCase()
@@ -69,8 +99,11 @@ export function normalizeHexColor(v) {
 }
 
 export function randomProjectColor() {
-  return ALLOWED_PROJECT_COLORS[Math.floor(Math.random() * ALLOWED_PROJECT_COLORS.length)]
+  return PALETTE_KEYS[Math.floor(Math.random() * PALETTE_KEYS.length)]
 }
+
+// Kept for compatibility — still used for projects without any colour stored
+export const ALLOWED_PROJECT_COLORS = PALETTE_KEYS
 
 export function stableColorFromString(str) {
   const palette = ['#6aa6ff','#66ffa6','#ffb86a','#ff6ad5','#a66aff','#6afff0','#ffd36a','#ff6a6a']

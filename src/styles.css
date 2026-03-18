@@ -1,57 +1,260 @@
-:root{
-      --bg:#0b0c10; --card:#111319; --muted:#8b93a7; --text:#e8ecf7;
-      --accent:#6aa6ff; --danger:#ff6a6a;
-      --radius:14px;
-      --timecol: 110px;
-      --daycol: minmax(0, 1fr);
-      --paid-bg: rgba(102,255,166,0.10);
-      --paid-text: rgba(170,255,210,0.95);
-      --rowh: 30px;
-    }
+/* ══════════════════════════════════════════
+   ТЁМНАЯ ТЕМА (по умолчанию)
+   ══════════════════════════════════════════ */
+:root {
+  /* Основные фоны */
+  --bg:              #1E1E1E;
+  --card:            #1E1E1E;
+  --surface:         rgba(255,255,255,0.025);
+  --surface-raised:  rgba(255,255,255,0.04);
+  --surface-hover:   rgba(255,255,255,0.05);
+  --surface-input:   rgba(0,0,0,0.18);
+  --surface-input2:  #181818;
+  --surface-modal:   #222222;
+  --surface-dark:    rgba(0,0,0,0.22);
+  --surface-darker:  rgba(0,0,0,0.35);
+
+  /* Текст */
+  --text:            #e8ecf7;
+  --text-secondary:  rgba(232,236,247,0.7);
+  --text-muted:      #8b93a7;
+  --text-dim:        rgba(255,255,255,0.35);
+  --text-faint:      rgba(255,255,255,0.25);
+
+  /* Границы */
+  --border:          rgba(255,255,255,0.07);
+  --border-strong:   rgba(255,255,255,0.10);
+  --border-input:    rgba(255,255,255,0.12);
+  --border-subtle:   rgba(255,255,255,0.05);
+  --border-faint:    rgba(255,255,255,0.04);
+
+  /* Акцент (золото) */
+  --accent:          #C9A96E;
+  --accent-text:     #E8D5B7;
+  --accent-dim:      rgba(201,169,110,0.15);
+  --accent-border:   rgba(201,169,110,0.45);
+  --accent-muted:    rgba(201,169,110,0.6);
+  --accent-faint:    rgba(201,169,110,0.05);
+
+  /* Синий (фокус/активность) */
+  --blue:            #6aa6ff;
+  --blue-dim:        rgba(106,166,255,0.06);
+  --blue-border:     rgba(106,166,255,0.4);
+
+  /* Danger */
+  --danger:          #ff6a6a;
+  --danger-dim:      rgba(255,106,106,0.16);
+  --danger-border:   rgba(255,106,106,0.5);
+
+  /* Оплачено / зелёный */
+  --paid-bg:         rgba(102,255,166,0.10);
+  --paid-text:       rgba(170,255,210,0.95);
+  --paid-border:     rgba(102,255,166,0.18);
+
+  /* Скролл / тени */
+  --shadow-card:     0 10px 30px rgba(0,0,0,0.35);
+  --shadow-modal:    0 24px 64px rgba(0,0,0,0.6);
+  --shadow-sm:       0 8px 24px rgba(0,0,0,0.5);
+  --backdrop:        rgba(0,0,0,0.6);
+  --overlay-bg:      rgba(0,0,0,0.55);
+
+  /* Стрелка для select (светлая) */
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='rgba(255,255,255,0.35)' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+
+  /* Прочее */
+  --radius:   14px;
+  --timecol:  110px;
+  --daycol:   minmax(0, 1fr);
+  --rowh:     30px;
+}
+
+/* ══════════════════════════════════════════
+   СВЕТЛАЯ ТЕМА
+   ══════════════════════════════════════════ */
+[data-theme="light"] {
+  --bg:              #F2EDE6;
+  --card:            #FAF7F3;
+  --surface:         rgba(0,0,0,0.04);
+  --surface-raised:  rgba(0,0,0,0.03);
+  --surface-hover:   rgba(0,0,0,0.05);
+  --surface-input:   rgba(255,255,255,0.8);
+  --surface-input2:  #FFFFFF;
+  --surface-modal:   #FFFFFF;
+  --surface-dark:    rgba(0,0,0,0.06);
+  --surface-darker:  rgba(0,0,0,0.10);
+
+  --text:            #1C1C1E;
+  --text-secondary:  rgba(28,28,30,0.75);
+  --text-muted:      #6B7280;
+  --text-dim:        rgba(28,28,30,0.45);
+  --text-faint:      rgba(28,28,30,0.35);
+
+  --border:          rgba(0,0,0,0.09);
+  --border-strong:   rgba(0,0,0,0.13);
+  --border-input:    rgba(0,0,0,0.15);
+  --border-subtle:   rgba(0,0,0,0.06);
+  --border-faint:    rgba(0,0,0,0.05);
+
+  --accent:          #A07840;
+  --accent-text:     #7A5C2E;
+  --accent-dim:      rgba(160,120,64,0.12);
+  --accent-border:   rgba(160,120,64,0.4);
+  --accent-muted:    rgba(160,120,64,0.65);
+  --accent-faint:    rgba(160,120,64,0.06);
+
+  --blue:            #3B6FD4;
+  --blue-dim:        rgba(59,111,212,0.08);
+  --blue-border:     rgba(59,111,212,0.45);
+
+  --danger:          #D93025;
+  --danger-dim:      rgba(217,48,37,0.10);
+  --danger-border:   rgba(217,48,37,0.4);
+
+  --paid-bg:         rgba(52,199,89,0.10);
+  --paid-text:       rgba(52,199,89,0.95);
+  --paid-border:     rgba(52,199,89,0.25);
+
+  --shadow-card:     0 4px 16px rgba(0,0,0,0.10);
+  --shadow-modal:    0 16px 48px rgba(0,0,0,0.18);
+  --shadow-sm:       0 4px 16px rgba(0,0,0,0.12);
+  --backdrop:        rgba(0,0,0,0.35);
+  --overlay-bg:      rgba(0,0,0,0.30);
+
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='rgba(0,0,0,0.4)' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Авто — подхватываем системную тему */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:              #F2EDE6;
+    --card:            #FAF7F3;
+    --surface:         rgba(0,0,0,0.04);
+    --surface-raised:  rgba(0,0,0,0.03);
+    --surface-hover:   rgba(0,0,0,0.05);
+    --surface-input:   rgba(255,255,255,0.8);
+    --surface-input2:  #FFFFFF;
+    --surface-modal:   #FFFFFF;
+    --surface-dark:    rgba(0,0,0,0.06);
+    --surface-darker:  rgba(0,0,0,0.10);
+
+    --text:            #1C1C1E;
+    --text-secondary:  rgba(28,28,30,0.75);
+    --text-muted:      #6B7280;
+    --text-dim:        rgba(28,28,30,0.45);
+    --text-faint:      rgba(28,28,30,0.35);
+
+    --border:          rgba(0,0,0,0.09);
+    --border-strong:   rgba(0,0,0,0.13);
+    --border-input:    rgba(0,0,0,0.15);
+    --border-subtle:   rgba(0,0,0,0.06);
+    --border-faint:    rgba(0,0,0,0.05);
+
+    --accent:          #A07840;
+    --accent-text:     #7A5C2E;
+    --accent-dim:      rgba(160,120,64,0.12);
+    --accent-border:   rgba(160,120,64,0.4);
+    --accent-muted:    rgba(160,120,64,0.65);
+    --accent-faint:    rgba(160,120,64,0.06);
+
+    --blue:            #3B6FD4;
+    --blue-dim:        rgba(59,111,212,0.08);
+    --blue-border:     rgba(59,111,212,0.45);
+
+    --danger:          #D93025;
+    --danger-dim:      rgba(217,48,37,0.10);
+    --danger-border:   rgba(217,48,37,0.4);
+
+    --paid-bg:         rgba(52,199,89,0.10);
+    --paid-text:       rgba(52,199,89,0.95);
+    --paid-border:     rgba(52,199,89,0.25);
+
+    --shadow-card:     0 4px 16px rgba(0,0,0,0.10);
+    --shadow-modal:    0 16px 48px rgba(0,0,0,0.18);
+    --shadow-sm:       0 4px 16px rgba(0,0,0,0.12);
+    --backdrop:        rgba(0,0,0,0.35);
+    --overlay-bg:      rgba(0,0,0,0.30);
+
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='rgba(0,0,0,0.4)' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  }
+}
+
     *{box-sizing:border-box}
     body{
       margin:0;
       font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
       Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
-      background: radial-gradient(1200px 700px at 20% -10%, #1a2450 0%, transparent 60%),
-                  radial-gradient(900px 600px at 95% 0%, #2a1a50 0%, transparent 55%),
-                  var(--bg);
+      background: var(--bg);
       color:var(--text);
     }
-    header{ padding:18px 18px 8px; max-width:1280px; margin:0 auto; }
-    h1{margin:0; font-size:18px; font-weight:700}
-    .sub{margin-top:6px; color:var(--muted); font-size:12.5px; line-height:1.4}
-    .wrap{max-width:1280px; margin:0 auto; padding:10px 18px 26px;}
+    .wrap{max-width:1280px; margin:0 auto; padding:18px 18px 26px;}
 
     .card{
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent 22%), var(--card);
-      border:1px solid rgba(255,255,255,0.07);
+      position: relative;
+      background: var(--card);
+      border:1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      box-shadow: var(--shadow-card);
       overflow:hidden;
     }
-    .tabs{
-      display:flex; gap:8px; padding:10px;
-      border-bottom:1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.02);
+
+    /* ── Top bar ── */
+    .topbar{
+      display:flex;
       align-items:center;
       justify-content:space-between;
+      gap:12px;
+      padding:10px 14px;
+      border-bottom:1px solid var(--border);
+      background: var(--surface-raised);
       flex-wrap:wrap;
     }
-    .tabsLeft{display:flex; gap:8px; flex-wrap:wrap}
-    .tabbtn{
-      border:1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.03);
-      color: var(--text);
-      padding:10px 12px;
-      border-radius: 12px;
-      cursor:pointer;
-      font-weight:650;
+    .topbar-left{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .topbar-logo{
+      font-size:18px;
+      line-height:1;
+      opacity:.85;
+    }
+    .topbar-title{
+      font-family: ui-monospace, monospace;
       font-size:13px;
+      font-weight:700;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      color: var(--accent-text);
+      white-space:nowrap;
+    }
+    .topbar-divider{
+      width:1px;
+      height:20px;
+      background: var(--border-strong);
+      flex-shrink:0;
+    }
+    .tabsLeft{display:flex; gap:6px; flex-wrap:wrap}
+    .tabbtn{
+      border:1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      padding:7px 14px;
+      border-radius: 10px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:13px;
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .tabbtn:hover{
+      background: var(--surface-hover);
+      color: var(--text);
     }
     .tabbtn.active{
-      background: rgba(106,166,255,0.18);
-      border-color: rgba(106,166,255,0.5);
+      background: var(--accent-dim);
+      border-color: var(--accent-border);
+      color: var(--accent-text);
     }
     .panel{display:none; padding:14px}
     .panel.active{display:block}
@@ -64,8 +267,8 @@
     .controls{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
 
     .btn{
-      border:1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.04);
+      border:1px solid var(--border-strong);
+      background: var(--surface);
       color: var(--text);
       padding:9px 11px;
       border-radius: 12px;
@@ -73,17 +276,19 @@
       font-weight:650;
       font-size:13px;
     }
-    .btn:hover{background: rgba(255,255,255,0.06)}
+    .btn:hover{ background: var(--surface-hover); }
     .btn.primary{
-      background: rgba(106,166,255,0.18);
-      border-color: rgba(106,166,255,0.5);
+      background: var(--accent-dim);
+      border-color: var(--accent-border);
+      color: var(--accent-text);
     }
     .btn.danger{
-      background: rgba(255,106,106,0.16);
-      border-color: rgba(255,106,106,0.5);
+      background: var(--danger-dim);
+      border-color: var(--danger-border);
+      color: var(--danger);
     }
-    .btn.ghost{background: transparent}
-    .btn:disabled{opacity:.55; cursor:not-allowed}
+    .btn.ghost{ background: transparent; }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; }
 
     .btn.icon{
       width: 34px;
@@ -109,17 +314,21 @@ input[type=number] {
 }
 
     .input, .select, .textarea{
-      border:1px solid rgba(255,255,255,0.12);
-      background: rgba(0,0,0,0.18);
+      border:1px solid var(--border-input);
+      background: var(--surface-input);
       color: var(--text);
       padding:9px 10px;
       border-radius: 12px;
       font-size:13px;
       outline:none;
     }
+    .input:focus, .select:focus, .textarea:focus {
+      border-color: var(--blue-border);
+      background: var(--blue-dim);
+    }
     .textarea{resize: vertical; min-height: 38px; max-height: 160px;}
-    .input::placeholder{color: rgba(139,147,167,0.85)}
-    .muted{color: var(--muted)}
+    .input::placeholder{ color: var(--text-muted); }
+    .muted{color: var(--text-muted);}
     .small{font-size:12px}
     .mono{font-variant-numeric: tabular-nums;}
     .nowrap{white-space:nowrap}
@@ -131,24 +340,24 @@ input[type=number] {
       width: 20px;
       height: 20px;
       border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.22);
-      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border-input);
+      background: var(--surface-darker);
       display:inline-block;
       position: relative;
       cursor:pointer;
     }
-    .ck:hover{ background: rgba(0,0,0,0.42); }
+    .ck:hover{ background: var(--surface-dark); }
     .ck:checked{
-      background: rgba(106,166,255,0.35);
-      border-color: rgba(106,166,255,0.65);
+      background: var(--blue-dim);
+      border-color: var(--blue-border);
     }
     .ck:checked::after{
       content:"";
       position:absolute;
       left: 6px; top: 2px;
       width: 6px; height: 11px;
-      border-right: 2px solid rgba(255,255,255,0.95);
-      border-bottom: 2px solid rgba(255,255,255,0.95);
+      border-right: 2px solid var(--blue);
+      border-bottom: 2px solid var(--blue);
       transform: rotate(45deg);
     }
 
@@ -158,12 +367,12 @@ input[type=number] {
       justify-content:flex-end;
     }
     .badge{
-      border:1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.04);
+      border:1px solid var(--border-input);
+      background: var(--surface);
       padding:6px 10px;
       border-radius: 999px;
       font-size:12px;
-      color: var(--muted);
+      color: var(--text-muted);
       max-width: 55ch;
       overflow:hidden;
       text-overflow: ellipsis;
@@ -172,10 +381,10 @@ input[type=number] {
 
     /* GRID */
     .gridWrap{
-      border:1px solid rgba(255,255,255,0.09);
+      border:1px solid var(--border-strong);
       border-radius: 14px;
       overflow:hidden;
-      background: rgba(0,0,0,0.12);
+      background: var(--surface-input);
     }
     .gridShell{ display:flex; width:100%; }
 
@@ -183,21 +392,19 @@ input[type=number] {
     .leftCol{
       width: var(--timecol);
       flex: 0 0 var(--timecol);
-      border-right:1px solid rgba(255,255,255,0.10);
-      background: rgba(17,19,25,0.95);
-      backdrop-filter: blur(6px);
+      border-right:1px solid var(--border-strong);
+      background: var(--surface-dark);
       position: relative;
       z-index: 10;
     }
     .leftHeader{
       padding:10px 8px;
-      border-bottom:1px solid rgba(255,255,255,0.09);
+      border-bottom:1px solid var(--border-strong);
       font-weight:700;
       font-size:12.5px;
-      color: var(--muted);
+      color: var(--text-muted);
     }
     .leftBody{
-      max-height: 70vh;
       overflow-y: hidden;
     }
     .tcell{
@@ -205,9 +412,9 @@ input[type=number] {
       height: var(--rowh);
       min-height: var(--rowh);
       max-height: var(--rowh);
-      border-bottom:1px solid rgba(255,255,255,0.06);
+      border-bottom:1px solid var(--border-subtle);
       font-size:12px;
-      color: var(--muted);
+      color: var(--text-muted);
       display:flex;
       align-items:center;
       line-height: 1;
@@ -223,12 +430,12 @@ input[type=number] {
 
     .rightHeader{
       display:grid;
-      border-bottom: 1px solid rgba(255,255,255,0.09);
-      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border-strong);
+      background: var(--surface-raised);
     }
     .hcell{
       padding:10px 8px;
-      border-right:1px solid rgba(255,255,255,0.08);
+      border-right:1px solid var(--border);
       font-weight:700;
       font-size:12.5px;
       color: var(--text);
@@ -239,24 +446,24 @@ input[type=number] {
       user-select: none;
     }
     .hcell.today{
-      outline: 2px solid rgba(106,166,255,0.45);
+      outline: 2px solid var(--accent-border);
       outline-offset: -2px;
-      background: rgba(106,166,255,0.10);
+      background: var(--accent-faint);
+      color: var(--accent-text);
     }
     .hcell.userOff{
-      outline: 2px solid rgba(255,255,255,0.10);
+      outline: 2px solid var(--border-strong);
       outline-offset: -2px;
-      background: rgba(255,255,255,0.03);
+      background: var(--surface-raised);
     }
     .hcell.userWork{
-      outline: 2px dashed rgba(255,255,255,0.12);
+      outline: 2px dashed var(--border-strong);
       outline-offset: -2px;
-      background: rgba(0,0,0,0.10);
+      background: var(--surface-dark);
     }
 
     .rightBody{
-      max-height: 70vh;
-      overflow-y:auto;
+      overflow-y:hidden;
       overflow-x:hidden;
     }
     .gRow{
@@ -264,69 +471,65 @@ input[type=number] {
       height: var(--rowh);
       min-height: var(--rowh);
       max-height: var(--rowh);
-      border-bottom:1px solid rgba(255,255,255,0.06);
+      border-bottom:1px solid var(--border-subtle);
       width: 100%;
     }
     .cell{
-      padding: 0 6px;
+      padding: 0;
       height: 100%;
-      border-right:1px solid rgba(255,255,255,0.06);
+      border-right:1px solid var(--border-subtle);
       font-size:12px;
-      background: rgba(0,0,0,0.10);
+      background: var(--surface-input);
       cursor:pointer;
       display:flex;
-      align-items:center;
-      gap:4px;
+      align-items:stretch;
+      gap:1px;
       min-width: 0;
       line-height: 1;
       overflow: hidden;
     }
-    .cell:hover{background: rgba(255,255,255,0.05)}
+    .cell:hover{ filter: brightness(1.08); }
 
     /* normal vs premium (x1.5) */
     .cell.normal{
-      background: rgba(0,0,0,0.22);
-    }
-    .cell.normal:hover{
-      background: rgba(0,0,0,0.28);
+      background: var(--surface-dark);
     }
     .cell.premium{
-      background: rgba(255,255,255,0.08);
-    }
-    .cell.premium:hover{
-      background: rgba(255,255,255,0.12);
+      background: var(--surface-raised);
     }
 
+    /* cellPills = full-height flex container */
     .cellPills{
       display:flex;
-      gap:4px;
+      gap:1px;
       width:100%;
+      height:100%;
       min-width:0;
       overflow:hidden;
     }
+
+    /* Each pill = a coloured block filling full height */
     .pill{
-      display:inline-flex;
+      display:flex;
       align-items:center;
-      gap:6px;
-      max-width: 100%;
-      padding: 2px 6px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.04);
+      justify-content:flex-start;
+      padding: 0 5px;
       overflow:hidden;
       min-width: 0;
       flex: 1 1 0;
+      height: 100%;
+      opacity: 0.82;
     }
-    .pill.small{ padding: 2px 6px; font-size:11px; }
-    
-    /* Пол-ячейки: одна задача занимает половину ширины (визуально как при 2 задачах) */
+    .pill.small{ font-size:11px; }
+
+    /* half = takes 50% width */
     .pill.half{
-      flex: 0 0 calc(50% - 2px);
-      max-width: calc(50% - 2px);
+      flex: 0 0 50%;
+      max-width: 50%;
     }
-.dot{width:9px; height:9px; border-radius:999px; flex: 0 0 auto; background: var(--accent);}
-    /* calendar pill name stays truncated */
-    .pname{overflow:hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;}
+
+    .dot{ display: none; }
+    .pname{overflow:hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-weight: 600;}
 
     /* Projects table */
     table{
@@ -334,31 +537,31 @@ input[type=number] {
       border-collapse: collapse;
       overflow:hidden;
       border-radius: 14px;
-      border:1px solid rgba(255,255,255,0.09);
+      border:1px solid var(--border-strong);
     }
     th, td{
-      border-bottom:1px solid rgba(255,255,255,0.07);
+      border-bottom:1px solid var(--border);
       padding:10px 10px;
       text-align:left;
       font-size:13px;
       vertical-align: top;
     }
     th{
-      background: rgba(255,255,255,0.03);
-      color: var(--muted);
+      background: var(--surface-raised);
+      color: var(--text-muted);
       font-weight:800;
       font-size:12px;
       letter-spacing:0.2px;
       text-transform: uppercase;
     }
-    tr:hover td{background: rgba(255,255,255,0.03)}
+    tr:hover td{ background: var(--surface-hover); }
 
     tr.paid td{
       background: var(--paid-bg);
-      border-bottom-color: rgba(102,255,166,0.18);
+      border-bottom-color: var(--paid-border);
     }
     tr.paid:hover td{
-      background: rgba(102,255,166,0.13);
+      background: var(--paid-bg);
     }
 
     /* Fixed project name column width and wrap to 2 lines */
@@ -375,7 +578,7 @@ input[type=number] {
     /* Modal */
     .modalBack{
       position: fixed; inset:0;
-      background: rgba(0,0,0,0.55);
+      background: var(--backdrop);
       display:none;
       align-items:center;
       justify-content:center;
@@ -386,14 +589,14 @@ input[type=number] {
     .modal{
       width: min(580px, 100%);
       background: var(--card);
-      border:1px solid rgba(255,255,255,0.10);
+      border:1px solid var(--border-strong);
       border-radius: 16px;
-      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+      box-shadow: var(--shadow-modal);
       overflow:hidden;
     }
     .modalHead{
       padding: 14px 14px 10px;
-      border-bottom:1px solid rgba(255,255,255,0.08);
+      border-bottom:1px solid var(--border);
       display:flex;
       align-items:center;
       justify-content:space-between;
@@ -403,18 +606,18 @@ input[type=number] {
     .modalBody{padding: 14px}
     .modalFoot{
       padding: 12px 14px;
-      border-top:1px solid rgba(255,255,255,0.08);
+      border-top:1px solid var(--border);
       display:flex;
       gap:10px;
       justify-content:flex-end;
       flex-wrap:wrap;
     }
-    .hint{ color: var(--muted); font-size:12px; line-height:1.4; margin-top:8px; }
+    .hint{ color: var(--text-muted); font-size:12px; line-height:1.4; margin-top:8px; }
     .kbd{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      border:1px solid rgba(255,255,255,0.12);
-      border-bottom-color: rgba(255,255,255,0.20);
-      background: rgba(255,255,255,0.04);
+      border:1px solid var(--border-input);
+      border-bottom-color: var(--border-strong);
+      background: var(--surface);
       padding: 2px 6px;
       border-radius: 8px;
       font-size: 12px;
@@ -440,9 +643,9 @@ input[type=number] {
     .overlay{
       display:none;
       padding:16px;
-      border:1px dashed rgba(255,255,255,0.16);
+      border:1px dashed var(--border-strong);
       border-radius: 14px;
-      background: rgba(0,0,0,0.18);
+      background: var(--surface-dark);
       margin: 14px;
     }
     .overlay.open{display:block}
@@ -452,10 +655,10 @@ input[type=number] {
       gap:8px;
       align-items:center;
       padding:8px 10px;
-      border:1px solid rgba(255,255,255,0.10);
+      border:1px solid var(--border-strong);
       border-radius: 12px;
-      background: rgba(255,255,255,0.03);
-      color: var(--muted);
+      background: var(--surface);
+      color: var(--text-muted);
       font-size:12px;
       line-height: 1.35;
     }
@@ -466,9 +669,9 @@ input[type=number] {
       gap:8px;
       padding: 4px 10px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.03);
-      color: rgba(232,236,247,0.85);
+      border: 1px solid var(--border-input);
+      background: var(--surface);
+      color: var(--text);
       font-size:12px;
       white-space: nowrap;
       max-width: 100%;
@@ -483,3 +686,45 @@ input[type=number] {
 .hcell, .cell{ min-width: 0; }
 .hcell{ padding-left: 6px; padding-right: 6px; font-size: 12px; }
 .pname{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ═══════════════════════════════════
+   МОБИЛЬНАЯ АДАПТАЦИЯ (≤ 640px)
+   ═══════════════════════════════════ */
+
+@media (max-width: 640px) {
+  :root {
+    --timecol: 72px;
+    --rowh: 36px;
+  }
+
+  .wrap { padding: 6px 6px 14px; }
+
+  /* Шапка */
+  .topbar { padding: 8px 10px; gap: 8px; }
+  .topbar-title { font-size: 11px; letter-spacing: 1.5px; }
+  .authBar .badge { max-width: 24ch; font-size: 11px; }
+
+  /* Вкладки — скрываем на мобильном (заменяются моб. меню в App.vue) */
+  /* Модальные окна */
+  .m-box { border-radius: 14px; }
+  .m-body { padding: 14px 14px 16px; }
+  .m-head { padding: 13px 14px 11px; }
+  .m-foot { padding: 11px 14px; }
+
+  /* Кнопки */
+  .btn { padding: 8px 10px; font-size: 12px; }
+
+  /* Поля ввода */
+  .input, .select, .textarea { font-size: 14px; padding: 10px; }
+
+  /* CalendarGrid — нативный скролл на мобильном */
+
+  /* leftCol чуть уже */
+  .leftCol { width: var(--timecol); flex: 0 0 var(--timecol); }
+  .tcell { font-size: 11px; padding: 0 5px; }
+}
+
+@media (max-width: 400px) {
+  :root { --timecol: 62px; }
+  .topbar-title { display: none; }
+}

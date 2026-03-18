@@ -4,12 +4,16 @@ import { sb } from '../supabase'
 
 export const useAuthStore = defineStore('auth', () => {
   const session = ref(null)
+  let initialized = false
 
   const userId = computed(() => session.value?.user?.id ?? null)
   const userEmail = computed(() => session.value?.user?.email ?? null)
   const isAuthed = computed(() => !!userId.value)
 
   async function init() {
+    if (initialized) return
+    initialized = true
+
     const { data } = await sb.auth.getSession()
     session.value = data.session
 
