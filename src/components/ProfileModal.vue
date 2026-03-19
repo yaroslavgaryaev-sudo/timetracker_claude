@@ -17,17 +17,14 @@ const identities = ref([])
 const loadingLink = ref('')
 
 const hasGoogle = computed(() => identities.value.some(i => i.provider === 'google'))
-const hasApple = computed(() => identities.value.some(i => i.provider === 'apple'))
-const hasEmail = computed(() => identities.value.some(i => i.provider === 'email'))
+const hasApple  = computed(() => identities.value.some(i => i.provider === 'apple'))
 
 async function loadIdentities() {
   try {
     const { data, error } = await sb.auth.getUserIdentities()
     if (error) throw error
     identities.value = data?.identities ?? []
-  } catch (e) {
-    console.error(e)
-  }
+  } catch (e) { console.error(e) }
 }
 
 async function linkProvider(provider) {
@@ -37,17 +34,14 @@ async function linkProvider(provider) {
     await auth.linkProvider(provider, redirectTo)
   } catch (e) {
     console.error(e)
-    toast.error('Ошибка привязки аккаунта')
+    toast.error(t('profile.linkError'))
     loadingLink.value = ''
   }
 }
 
 function close() { emit('close') }
 function onKey(e) { if (e.key === 'Escape') close() }
-onMounted(() => {
-  document.addEventListener('keydown', onKey)
-  loadIdentities()
-})
+onMounted(() => { document.addEventListener('keydown', onKey); loadIdentities() })
 onUnmounted(() => document.removeEventListener('keydown', onKey))
 </script>
 
@@ -56,32 +50,30 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
     <div class="pm-backdrop" @click.self="close">
       <div class="pm-box" role="dialog" aria-modal="true">
 
-        <!-- Head -->
         <div class="pm-head">
           <div class="pm-head-left">
             <span class="pm-icon">◉</span>
-            <span class="pm-title">Личный кабинет</span>
+            <span class="pm-title">{{ t('profile.title') }}</span>
           </div>
-          <button class="pm-close" @click="close" title="Закрыть (Esc)">✕</button>
+          <button class="pm-close" @click="close" title="Esc">✕</button>
         </div>
 
         <div class="pm-body">
 
-          <!-- Account info -->
+          <!-- Account -->
           <div class="pm-section">
-            <div class="pm-section-title">Аккаунт</div>
+            <div class="pm-section-title">{{ t('profile.sectionAccount') }}</div>
             <div class="pm-email-row">
               <span class="pm-email-icon">✉</span>
               <span class="pm-email">{{ auth.userEmail }}</span>
             </div>
           </div>
 
-          <!-- Linked accounts -->
+          <!-- Sign-in methods -->
           <div class="pm-section">
-            <div class="pm-section-title">Способы входа</div>
+            <div class="pm-section-title">{{ t('profile.sectionProviders') }}</div>
             <div class="pm-providers">
 
-              <!-- Google -->
               <div class="pm-provider-row">
                 <div class="pm-provider-left">
                   <svg class="pm-provider-icon" viewBox="0 0 24 24">
@@ -92,16 +84,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   </svg>
                   <span class="pm-provider-name">Google</span>
                 </div>
-                <div v-if="hasGoogle" class="pm-provider-badge pm-badge-linked">✓ Привязан</div>
-                <button
-                  v-else
-                  class="pm-provider-btn"
-                  :disabled="loadingLink === 'google'"
-                  @click="linkProvider('google')"
-                >{{ loadingLink === 'google' ? '…' : 'Привязать' }}</button>
+                <div v-if="hasGoogle" class="pm-provider-badge pm-badge-linked">{{ t('profile.linked') }}</div>
+                <button v-else class="pm-provider-btn" :disabled="loadingLink === 'google'" @click="linkProvider('google')">
+                  {{ loadingLink === 'google' ? t('profile.linking') : t('profile.linkBtn') }}
+                </button>
               </div>
 
-              <!-- Apple -->
               <div class="pm-provider-row">
                 <div class="pm-provider-left">
                   <svg class="pm-provider-icon" viewBox="0 0 24 24">
@@ -109,22 +97,18 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   </svg>
                   <span class="pm-provider-name">Apple</span>
                 </div>
-                <div v-if="hasApple" class="pm-provider-badge pm-badge-linked">✓ Привязан</div>
-                <button
-                  v-else
-                  class="pm-provider-btn"
-                  :disabled="loadingLink === 'apple'"
-                  @click="linkProvider('apple')"
-                >{{ loadingLink === 'apple' ? '…' : 'Привязать' }}</button>
+                <div v-if="hasApple" class="pm-provider-badge pm-badge-linked">{{ t('profile.linked') }}</div>
+                <button v-else class="pm-provider-btn" :disabled="loadingLink === 'apple'" @click="linkProvider('apple')">
+                  {{ loadingLink === 'apple' ? t('profile.linking') : t('profile.linkBtn') }}
+                </button>
               </div>
 
-              <!-- Email -->
               <div class="pm-provider-row">
                 <div class="pm-provider-left">
                   <span class="pm-provider-icon pm-provider-icon-text">✉</span>
                   <span class="pm-provider-name">E-mail</span>
                 </div>
-                <div class="pm-provider-badge pm-badge-linked">✓ Активен</div>
+                <div class="pm-provider-badge pm-badge-linked">{{ t('profile.emailActive') }}</div>
               </div>
 
             </div>
@@ -137,20 +121,14 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             <div class="pm-setting-row">
               <span class="pm-setting-label">{{ t('settings.theme') }}</span>
               <div class="pm-theme-btns">
-                <button class="pm-theme-btn" :class="{ active: settings.theme === 'auto' }" @click="settings.setTheme('auto')">
-                  ⬤◐ {{ t('settings.themeSystem') }}
-                </button>
-                <button class="pm-theme-btn" :class="{ active: settings.theme === 'dark' }" @click="settings.setTheme('dark')">
-                  🌙 {{ t('settings.themeDark') }}
-                </button>
-                <button class="pm-theme-btn" :class="{ active: settings.theme === 'light' }" @click="settings.setTheme('light')">
-                  ☀️ {{ t('settings.themeLight') }}
-                </button>
+                <button class="pm-theme-btn" :class="{ active: settings.theme === 'auto' }" @click="settings.setTheme('auto')">⬤◐ {{ t('settings.themeSystem') }}</button>
+                <button class="pm-theme-btn" :class="{ active: settings.theme === 'dark' }" @click="settings.setTheme('dark')">🌙 {{ t('settings.themeDark') }}</button>
+                <button class="pm-theme-btn" :class="{ active: settings.theme === 'light' }" @click="settings.setTheme('light')">☀️ {{ t('settings.themeLight') }}</button>
               </div>
             </div>
 
             <div class="pm-setting-row">
-              <span class="pm-setting-label">Язык / Language</span>
+              <span class="pm-setting-label">{{ t('settings.language') }}</span>
               <div class="pm-theme-btns">
                 <button class="pm-theme-btn" :class="{ active: locale === 'ru' }" @click="setLocale('ru')">🇷🇺 Русский</button>
                 <button class="pm-theme-btn" :class="{ active: locale === 'en' }" @click="setLocale('en')">🇬🇧 English</button>
@@ -160,9 +138,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
         </div>
 
-        <!-- Foot -->
         <div class="pm-foot">
-          <button class="pm-logout-btn" @click="auth.logout(); close()">Выйти из аккаунта</button>
+          <button class="pm-logout-btn" @click="auth.logout(); close()">{{ t('profile.logout') }}</button>
         </div>
 
       </div>
@@ -172,146 +149,80 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
 <style scoped>
 .pm-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 400;
-  background: var(--backdrop);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  animation: pmFade .15s ease;
+  position: fixed; inset: 0; z-index: 400;
+  background: var(--backdrop); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; animation: pmFade .15s ease;
 }
 @keyframes pmFade { from { opacity: 0 } to { opacity: 1 } }
 
 .pm-box {
   width: min(480px, 100%);
-  background: var(--surface-modal);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
-  overflow: hidden;
-  animation: pmSlide .18s ease;
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
+  background: var(--surface-modal); border: 1px solid var(--border);
+  border-radius: 20px; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  overflow: hidden; animation: pmSlide .18s ease;
+  display: flex; flex-direction: column; max-height: 90vh;
 }
 @keyframes pmSlide { from { transform: translateY(12px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
 
 .pm-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px 14px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .pm-head-left { display: flex; align-items: center; gap: 10px; }
 .pm-icon { font-size: 14px; color: var(--accent); }
 .pm-title {
-  font-family: ui-monospace, monospace;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--accent-text);
+  font-family: ui-monospace, monospace; font-size: 13px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent-text);
 }
 .pm-close {
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--text-dim);
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-family: inherit;
-  transition: background .12s, color .12s;
+  background: transparent; border: 1px solid var(--border-strong);
+  color: var(--text-dim); width: 28px; height: 28px; border-radius: 8px;
+  cursor: pointer; font-size: 12px; display: flex; align-items: center;
+  justify-content: center; font-family: inherit; transition: background .12s, color .12s;
 }
 .pm-close:hover { background: rgba(255,100,100,0.12); color: var(--danger); }
 
-.pm-body {
-  overflow-y: auto;
-  flex: 1;
-  padding: 6px 0;
-}
+.pm-body { overflow-y: auto; flex: 1; padding: 6px 0; }
 
-.pm-section {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-subtle);
-}
+.pm-section { padding: 16px 20px; border-bottom: 1px solid var(--border-subtle); }
 .pm-section:last-child { border-bottom: none; }
-
 .pm-section-title {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 12px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;
   font-family: ui-monospace, monospace;
 }
 
-/* Account */
-.pm-email-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+.pm-email-row { display: flex; align-items: center; gap: 10px; }
 .pm-email-icon { font-size: 16px; color: var(--text-dim); }
 .pm-email { font-size: 14px; color: var(--text); font-weight: 500; }
 
-/* Providers */
 .pm-providers { display: flex; flex-direction: column; gap: 8px; }
 .pm-provider-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px;
 }
 .pm-provider-left { display: flex; align-items: center; gap: 10px; }
 .pm-provider-icon { width: 20px; height: 20px; flex-shrink: 0; }
 .pm-provider-icon-text { font-size: 16px; color: var(--text-secondary); }
 .pm-provider-name { font-size: 14px; font-weight: 600; color: var(--text); }
 
-.pm-provider-badge {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-.pm-badge-linked {
-  background: rgba(102,255,166,0.1);
-  color: #66ffa6;
-  border: 1px solid rgba(102,255,166,0.25);
-}
+.pm-provider-badge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+.pm-badge-linked { background: rgba(102,255,166,0.1); color: #66ffa6; border: 1px solid rgba(102,255,166,0.25); }
+
 .pm-provider-btn {
-  background: var(--accent-dim);
-  border: 1px solid var(--accent-border);
-  color: var(--accent-text);
-  padding: 6px 14px;
-  border-radius: 9px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
+  background: var(--accent-dim); border: 1px solid var(--accent-border);
+  color: var(--accent-text); padding: 6px 14px; border-radius: 9px;
+  cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;
   transition: background .12s;
 }
 .pm-provider-btn:hover:not(:disabled) { background: rgba(201,169,110,0.22); }
 .pm-provider-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* Settings */
 .pm-setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px; flex-wrap: wrap;
 }
 .pm-setting-row:last-child { margin-bottom: 0; }
 .pm-setting-label { font-size: 14px; font-weight: 600; color: var(--text); flex-shrink: 0; }
@@ -319,34 +230,19 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 .pm-theme-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .pm-theme-btn {
   display: flex; align-items: center; gap: 5px;
-  padding: 7px 12px; border-radius: 10px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px; font-weight: 600;
-  font-family: inherit; cursor: pointer;
+  padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-secondary);
+  font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
   transition: background .12s, border-color .12s, color .12s;
 }
 .pm-theme-btn:hover { background: var(--surface-hover); color: var(--text); }
 .pm-theme-btn.active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent-text); }
 
-/* Foot */
-.pm-foot {
-  padding: 14px 20px;
-  border-top: 1px solid var(--border-subtle);
-  flex-shrink: 0;
-}
+.pm-foot { padding: 14px 20px; border-top: 1px solid var(--border-subtle); flex-shrink: 0; }
 .pm-logout-btn {
-  width: 100%;
-  background: transparent;
-  border: 1px solid var(--danger-border);
-  color: var(--danger);
-  padding: 10px 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: inherit;
+  width: 100%; background: transparent; border: 1px solid var(--danger-border);
+  color: var(--danger); padding: 10px 16px; border-radius: 12px;
+  cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit;
   transition: background .12s;
 }
 .pm-logout-btn:hover { background: var(--danger-dim); }

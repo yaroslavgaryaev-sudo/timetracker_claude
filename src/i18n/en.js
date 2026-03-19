@@ -147,6 +147,7 @@ export default {
     themeSystem: 'System',
     themeDark:  'Dark',
     themeLight:  'Light',
+    language:    'Language',
   },
 
   confirm: {
@@ -179,6 +180,32 @@ export default {
     loadWeek:      'Failed to load week. Check your connection.',
     recalcRunning: 'Recalculation is already running in another tab. Please wait.',
     recalcFailed:  'Failed to recalculate. Check your connection.',
+  },
+
+  authModal: {
+    subtitle:        'Sign in to save your data',
+    signInGoogle:    'Sign in with Google',
+    signInApple:     'Sign in with Apple',
+    orEmail:         'or with e-mail',
+    getLink:         'Get sign-in link',
+    sending:         'Sending…',
+    spamHint:        'We\'ll send a sign-in link. Check Spam if it doesn\'t arrive.',
+    sentTitle:       'Link sent!',
+    sentText:        'Open the email to {email} and click the sign-in link.',
+    back:            '← Back',
+    errorProvider:   'Sign in error with {provider}',
+  },
+
+  profile: {
+    title:           'Profile',
+    sectionAccount:  'Account',
+    sectionProviders: 'Sign-in methods',
+    linked:          '✓ Linked',
+    emailActive:     '✓ Active',
+    linkBtn:         'Link',
+    linking:         '…',
+    linkError:       'Failed to link account',
+    logout:          'Sign out',
   },
 
   months: {
