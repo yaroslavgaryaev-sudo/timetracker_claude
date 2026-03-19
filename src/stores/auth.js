@@ -30,10 +30,28 @@ export const useAuthStore = defineStore('auth', () => {
     if (error) throw error
   }
 
+  // Вход через OAuth провайдер (Google, Apple)
+  async function signInWithProvider(provider, redirectTo) {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo }
+    })
+    if (error) throw error
+  }
+
+  // Привязка дополнительного OAuth провайдера к существующему аккаунту
+  async function linkProvider(provider, redirectTo) {
+    const { error } = await sb.auth.linkIdentity({
+      provider,
+      options: { redirectTo }
+    })
+    if (error) throw error
+  }
+
   async function logout() {
     await sb.auth.signOut()
     session.value = null
   }
 
-  return { session, userId, userEmail, isAuthed, init, sendMagicLink, logout }
+  return { session, userId, userEmail, isAuthed, init, sendMagicLink, signInWithProvider, linkProvider, logout }
 })

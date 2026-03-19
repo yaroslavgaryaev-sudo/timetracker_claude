@@ -5,13 +5,13 @@ import { useProjectsStore } from './stores/projects'
 import { useCalendarStore } from './stores/calendar'
 import { useSettingsStore } from './stores/settings'
 import { useI18n } from './i18n/index.js'
-import LoginBox from './components/LoginBox.vue'
+import AuthModal from './components/AuthModal.vue'
+import ProfileModal from './components/ProfileModal.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import CalendarGrid from './components/CalendarGrid.vue'
 import ProjectsTab from './components/ProjectsTab.vue'
 import StatsTab from './components/StatsTab.vue'
 import BudgetTab from './components/BudgetTab.vue'
-import SettingsTab from './components/SettingsTab.vue'
 
 const auth = useAuthStore()
 const proj = useProjectsStore()
@@ -19,14 +19,22 @@ const cal = useCalendarStore()
 useSettingsStore()
 const { t } = useI18n()
 
-const TABS = ['tab1','tab2','tab3','tab4','tab5']
+// Вкладки — без настроек (перенесены в профиль)
+const TABS = ['tab1', 'tab2', 'tab3', 'tab4']
 const savedTab = localStorage.getItem('activeTab')
 const activeTab = ref(TABS.includes(savedTab) ? savedTab : 'tab1')
 watch(activeTab, v => localStorage.setItem('activeTab', v))
 
+const showProfile = ref(false)
+
 // Мобильное меню
 const menuOpen = ref(false)
-const TAB_NAMES = computed(() => ({ tab1: t('nav.calendar'), tab2: t('nav.projects'), tab3: t('nav.stats'), tab4: t('nav.calculator'), tab5: t('nav.settings') }))
+const TAB_NAMES = computed(() => ({
+  tab1: t('nav.calendar'),
+  tab2: t('nav.projects'),
+  tab3: t('nav.stats'),
+  tab4: t('nav.calculator'),
+}))
 function selectTab(tab) { activeTab.value = tab; menuOpen.value = false }
 function onDocClick(e) {
   if (!e.target.closest('.mob-menu-wrap')) menuOpen.value = false
@@ -34,9 +42,8 @@ function onDocClick(e) {
 onMounted(() => document.addEventListener('click', onDocClick))
 onUnmounted(() => document.removeEventListener('click', onDocClick))
 
-// Init auth listener
+// Init
 auth.init()
-
 const appLoading = ref(false)
 
 watch(() => auth.isAuthed, async (authed) => {
@@ -77,10 +84,9 @@ watch(() => auth.isAuthed, async (authed) => {
             <button class="tabbtn" :class="{ active: activeTab === 'tab2' }" @click="activeTab = 'tab2'">{{ t('nav.projects') }}</button>
             <button class="tabbtn" :class="{ active: activeTab === 'tab3' }" @click="activeTab = 'tab3'">{{ t('nav.stats') }}</button>
             <button class="tabbtn" :class="{ active: activeTab === 'tab4' }" @click="activeTab = 'tab4'">{{ t('nav.calculator') }}</button>
-            <button class="tabbtn" :class="{ active: activeTab === 'tab5' }" @click="activeTab = 'tab5'">{{ t('nav.settings') }}</button>
           </div>
 
-          <!-- Мобайл: одна кнопка + выпадающий список -->
+          <!-- Мобайл: выпадающий список -->
           <div class="mob-menu-wrap">
             <button class="tabbtn mob-tab-btn" @click.stop="menuOpen = !menuOpen">
               {{ TAB_NAMES[activeTab] }} ▾
@@ -96,20 +102,22 @@ watch(() => auth.isAuthed, async (authed) => {
           </div>
         </div>
 
+        <!-- Правая часть топбара -->
         <div class="authBar">
-          <span class="badge">{{ auth.isAuthed ? auth.userEmail : t('state.notAuthed') }}</span>
-          <button v-if="auth.isAuthed" class="btn" @click="auth.logout">{{ t('btn.logout') }}</button>
+          <template v-if="auth.isAuthed">
+            <button class="profile-btn" @click="showProfile = true">
+              <span class="profile-btn-icon">◉</span>
+              <span class="profile-btn-text">Профиль</span>
+            </button>
+          </template>
         </div>
       </div>
-
-      <LoginBox v-if="!auth.isAuthed" />
 
       <div v-if="appLoading" class="app-loading-overlay">
         <div class="app-loading-spinner"></div>
         <div class="app-loading-text">Загрузка данных…</div>
       </div>
 
-      <!-- v-show сохраняет DOM и состояние компонентов между переключениями -->
       <div v-show="activeTab === 'tab1'" class="panel active">
         <CalendarGrid />
       </div>
@@ -122,11 +130,11 @@ watch(() => auth.isAuthed, async (authed) => {
       <div v-show="activeTab === 'tab4'" class="panel active">
         <BudgetTab />
       </div>
-      <div v-show="activeTab === 'tab5'" class="panel active">
-        <SettingsTab />
-      </div>
     </div>
+
     <ToastContainer />
+    <AuthModal />
+    <ProfileModal v-if="showProfile" @close="showProfile = false" />
   </div>
 </template>
 
@@ -144,21 +152,15 @@ watch(() => auth.isAuthed, async (authed) => {
   z-index: 100;
 }
 .app-loading-spinner {
-  width: 28px;
-  height: 28px;
+  width: 28px; height: 28px;
   border: 2px solid var(--border-input);
   border-top-color: var(--text-secondary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-.app-loading-text {
-  font-size: 13px;
-  color: var(--text-dim);
-  letter-spacing: 0.5px;
-}
+.app-loading-text { font-size: 13px; color: var(--text-dim); letter-spacing: 0.5px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Десктоп: обычные вкладки видны, мобильное меню скрыто */
 .desktop-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .mob-menu-wrap { display: none; position: relative; }
 
@@ -194,9 +196,33 @@ watch(() => auth.isAuthed, async (authed) => {
 .mob-tab-item:hover { background: var(--surface-hover); color: var(--text); }
 .mob-tab-item.active { color: var(--accent-text); background: var(--accent-faint); }
 
+/* Profile button */
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.profile-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+}
+.profile-btn-icon { font-size: 15px; }
+
 @media (max-width: 640px) {
   .desktop-tabs { display: none; }
   .mob-menu-wrap { display: block; }
-  .authBar .badge { display: none; }
+  .profile-btn-text { display: none; }
+  .profile-btn { padding: 7px 10px; }
 }
 </style>

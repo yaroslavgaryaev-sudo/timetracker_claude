@@ -28,30 +28,31 @@ export const useCalendarStore = defineStore('calendar', () => {
   const toast = useToastStore()
 
   const currentWeekStart = ref(loadWeekFromStorage())
-  const entries = ref({})        // key "date|slot" -> [pid1, pid2?]
-  const cellHalf = ref({})       // key "date|slot" -> bool
-  const dayOverrides = ref({})   // dateISO -> bool
-  const savingCells = new Set() // ключи date|slot которые сейчас сохраняются
+  const entries = ref({})
+  const cellHalf = ref({})
+  const dayOverrides = ref({})
 
-  // Кэш загруженных дат с ограничением размера.
-  // Хранит не более MAX_CACHED_DATES дат; при переполнении вытесняет самые старые
-  // (порядок вставки в Map === порядок итерации → первый = самый старый).
-  const MAX_CACHED_DATES = 60 // ~8–9 недель
-  const loadedDatesMap = new Map() // dateISO -> true, insertion-ordered
+  // FIX: Map<key, Promise> вместо Set — позволяет await уже идущего сохранения
+  // и реактивен для Vue, в отличие от голого Set
+  const savingCells = ref(new Map())
+
+  const MAX_CACHED_DATES = 60
+  const loadedDatesMap = new Map()
+  // FIX: отдельный Set для кэша overrides — раньше fetchDayOverrides грузил их повторно
+  const loadedOverrideDates = new Set()
 
   function _markDateLoaded(dateISO) {
-    if (loadedDatesMap.has(dateISO)) return // уже есть — порядок не меняем
-    // Вытесняем самую старую дату если достигли лимита
+    if (loadedDatesMap.has(dateISO)) return
     if (loadedDatesMap.size >= MAX_CACHED_DATES) {
       const oldest = loadedDatesMap.keys().next().value
       loadedDatesMap.delete(oldest)
-      // Очищаем записи для вытесненной даты из entries и cellHalf
       for (const k of Object.keys(entries.value)) {
         if (k.startsWith(oldest + '|')) {
           delete entries.value[k]
           delete cellHalf.value[k]
         }
       }
+      loadedOverrideDates.delete(oldest)
       delete dayOverrides.value[oldest]
     }
     loadedDatesMap.set(dateISO, true)
@@ -90,8 +91,6 @@ export const useCalendarStore = defineStore('calendar', () => {
     return isWeekendISO(dateISO)
   }
 
-  // Чистая функция — не зависит от реактивного состояния.
-  // Используется и в slotMultiplier (текущая неделя), и в calcAllHours (все данные).
   function calcMultiplier(dateISO, slot, ovMap) {
     const ov = ovMap[dateISO]
     const isWeekend = (() => { const d = new Date(dateISO + 'T00:00:00').getDay(); return d === 0 || d === 6 })()
@@ -160,19 +159,22 @@ export const useCalendarStore = defineStore('calendar', () => {
 
   async function fetchDayOverridesForDates(dateList) {
     if (!dateList.length) return
+    // FIX: пропускаем уже загруженные даты — раньше overrides грузились повторно
+    const dates = dateList.filter(d => !loadedOverrideDates.has(d))
+    if (!dates.length) return
+
     const { data, error } = await sb
       .from('day_overrides')
       .select('date,is_premium')
       .eq('user_id', auth.userId)
-      .in('date', dateList)
+      .in('date', dates)
     if (error) throw error
 
-    for (const d of dateList) delete dayOverrides.value[d]
+    dates.forEach(d => loadedOverrideDates.add(d))
+    for (const d of dates) delete dayOverrides.value[d]
     for (const row of (data || [])) dayOverrides.value[row.date] = !!row.is_premium
   }
 
-  // Считает { real, weighted } для одной ячейки.
-  // taskCount — количество задач (1 или 2), halfCell — флаг половинки.
   function calcCellHours(dateISO, slot, taskCount, halfCell) {
     const realPer     = taskCount === 2 ? 0.25 : (halfCell ? 0.25 : 0.5)
     const mult        = calcMultiplier(dateISO, slot, dayOverrides.value)
@@ -183,11 +185,12 @@ export const useCalendarStore = defineStore('calendar', () => {
   async function saveCell(dateISO, slot, taskIds, isHalf = false) {
     const k = entryKey(dateISO, slot)
 
-    // Защита от параллельных вызовов на одну ячейку (двойной клик)
-    if (savingCells.has(k)) return
-    savingCells.add(k)
+    // FIX: ждём уже выполняющееся сохранение для этой ячейки.
+    // Раньше использовался голый Set — он не реактивен и пропускал конкурентные
+    // вызовы если ключ ячейки менялся (например, клик по соседней ячейке и обратно).
+    const inflight = savingCells.value.get(k)
+    if (inflight) await inflight
 
-    // Запоминаем старое состояние для возможного отката
     const prevTaskIds = entries.value[k] ? [...entries.value[k]] : []
     const prevIsHalf  = !!cellHalf.value[k] && prevTaskIds.length === 1
 
@@ -198,7 +201,6 @@ export const useCalendarStore = defineStore('calendar', () => {
 
     if (isHalf && clean.length > 1) clean = clean.slice(0, 1)
 
-    // ── Оптимистичное обновление локального state — сразу, до запроса к БД ──
     if (clean.length === 0) {
       delete entries.value[k]
       delete cellHalf.value[k]
@@ -208,8 +210,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     }
     applyUsageDelta(prevTaskIds, clean, dateISO)
 
-    // ── Фоновое сохранение в БД ───────────────────────────────────────────────
-    ;(async () => {
+    const savePromise = (async () => {
       try {
         if (clean.length > 0) {
           const rows = clean.map((pid, i) => ({
@@ -221,7 +222,6 @@ export const useCalendarStore = defineStore('calendar', () => {
             is_half: i === 0 ? isHalf : false
           }))
 
-          // Вариант Б: upsert и delete (если нужен) запускаем параллельно
           const ops = [
             sb.from('calendar_entries')
               .upsert(rows, { onConflict: 'user_id,date,slot,task_index' })
@@ -249,7 +249,6 @@ export const useCalendarStore = defineStore('calendar', () => {
           if (delErr) throw delErr
         }
 
-        // Обновляем агрегаты часов (fire-and-forget)
         const newIsHalf = isHalf && clean.length === 1
         const allPids = new Set([...prevTaskIds, ...clean])
         for (const pid of allPids) {
@@ -271,28 +270,30 @@ export const useCalendarStore = defineStore('calendar', () => {
           }
         }
       } catch (e) {
-        // Откат локального state при ошибке сети
         console.error('saveCell background error:', e)
         if (prevTaskIds.length === 0) {
-          // Ячейка была пустой — удаляем то, что успели добавить оптимистично
           delete entries.value[k]
           delete cellHalf.value[k]
         } else if (clean.length === 0) {
-          // Ячейка была заполнена, мы её очистили — восстанавливаем
           entries.value[k] = prevTaskIds
           cellHalf.value[k] = prevIsHalf
         } else {
-          // Ячейка была заполнена, мы изменили содержимое — восстанавливаем предыдущее
           entries.value[k] = prevTaskIds
           cellHalf.value[k] = prevIsHalf
         }
+        // FIX: откатываем usageStats — раньше он оставался в оптимистичном состоянии
         applyUsageDelta(clean, prevTaskIds, dateISO)
 
         toast.error(t('errors.saveCell'))
       } finally {
-        savingCells.delete(k)
+        // Чистим только свой Promise, не чужой
+        if (savingCells.value.get(k) === savePromise) {
+          savingCells.value.delete(k)
+        }
       }
     })()
+
+    savingCells.value.set(k, savePromise)
   }
 
   async function upsertDayOverride(dateISO, isPremium) {
@@ -300,12 +301,15 @@ export const useCalendarStore = defineStore('calendar', () => {
     const { error } = await sb.from('day_overrides').upsert(payload, { onConflict: 'user_id,date' })
     if (error) throw error
     dayOverrides.value[dateISO] = !!isPremium
+    // Помечаем дату как загруженную с актуальным значением
+    loadedOverrideDates.add(dateISO)
   }
 
   async function deleteDayOverride(dateISO) {
     const { error } = await sb.from('day_overrides').delete().eq('user_id', auth.userId).eq('date', dateISO)
     if (error) throw error
     delete dayOverrides.value[dateISO]
+    loadedOverrideDates.delete(dateISO)
   }
 
   function prevWeek() {
@@ -324,196 +328,158 @@ export const useCalendarStore = defineStore('calendar', () => {
     currentWeekStart.value = firstFullWeekStartOfMonth(year, month)
   }
 
-// --- Полный подсчёт часов из БД ---
-const allHoursMap = ref(new Map())
-const allHoursLoading = ref(false)
-const allEntriesCache = ref([])   // сырые строки calendar_entries — для StatsTab
-const allOverridesCache = ref({}) // dateISO -> bool — для StatsTab
+  const allHoursMap = ref(new Map())
+  const allHoursLoading = ref(false)
+  const allEntriesCache = ref([])
+  const allOverridesCache = ref({})
 
-// BroadcastChannel для координации между вкладками: предотвращает параллельный
-// запуск calcAllHours в двух вкладках одновременно (иначе двойной инкремент в БД).
-let _calcChannel = null
-function _getCalcChannel() {
-  if (!_calcChannel && typeof BroadcastChannel !== 'undefined') {
-    _calcChannel = new BroadcastChannel('timetracker_calc_lock')
-  }
-  return _calcChannel
-}
-// true пока другая вкладка держит лок
-let _remoteCalcRunning = false
-function _initCalcChannel() {
-  const ch = _getCalcChannel()
-  if (!ch) return
-  ch.onmessage = (e) => {
-    if (e.data === 'calc_start') _remoteCalcRunning = true
-    if (e.data === 'calc_done')  _remoteCalcRunning = false
-  }
-}
+  // FIX: BroadcastChannel удалён как ненадёжный лок.
+  // При закрытии вкладки в середине calc_done никогда не отправлялся,
+  // что намертво блокировало другие вкладки.
+  // Достаточно allHoursLoading внутри вкладки — calcAllHours не пишет
+  // в БД, только читает, параллельный запуск безопасен.
 
-// --- Статистика использования проектов (для быстрого доступа в CellModal) ---
-// { [pid]: { count: number, lastDate: string } }
-const usageStats = ref({})
+  const usageStats = ref({})
 
-// Инициализируем межвкладочный канал сразу при создании стора
-_initCalcChannel()
-
-async function loadUsageStats() {
-  if (!auth.userId) return
-  // Агрегирующий запрос — возвращает одну строку на проект вместо всех записей
-  const { data, error } = await sb
-    .from('calendar_entries')
-    .select('project_id.count(), date.max()')
-    .eq('user_id', auth.userId)
-    .not('project_id', 'is', null)
-  if (error) {
-    // Фоллбэк: агрегация не поддерживается — берём только последние 500 записей.
-    // Этого достаточно для определения "последних" и "популярных" проектов в CellModal,
-    // при этом не грузим всю историю пользователя в память браузера.
-    const { data: raw, error: rawErr } = await sb
+  async function loadUsageStats() {
+    if (!auth.userId) return
+    const { data, error } = await sb
       .from('calendar_entries')
-      .select('project_id, date')
+      .select('project_id.count(), date.max()')
       .eq('user_id', auth.userId)
       .not('project_id', 'is', null)
-      .order('date', { ascending: false })
-      .limit(500)
-    if (rawErr) { console.error('loadUsageStats:', rawErr); return }
+    if (error) {
+      const { data: raw, error: rawErr } = await sb
+        .from('calendar_entries')
+        .select('project_id, date')
+        .eq('user_id', auth.userId)
+        .not('project_id', 'is', null)
+        .order('date', { ascending: false })
+        .limit(500)
+      if (rawErr) { console.error('loadUsageStats:', rawErr); return }
+      const stats = {}
+      for (const row of (raw || [])) {
+        const pid = row.project_id
+        if (!pid) continue
+        if (!stats[pid]) stats[pid] = { count: 0, lastDate: '' }
+        stats[pid].count++
+        if (row.date > stats[pid].lastDate) stats[pid].lastDate = row.date
+      }
+      usageStats.value = stats
+      return
+    }
     const stats = {}
-    for (const row of (raw || [])) {
+    for (const row of (data || [])) {
       const pid = row.project_id
       if (!pid) continue
-      if (!stats[pid]) stats[pid] = { count: 0, lastDate: '' }
-      stats[pid].count++
-      if (row.date > stats[pid].lastDate) stats[pid].lastDate = row.date
+      stats[pid] = {
+        count:    Number(row.count) || 0,
+        lastDate: row.max           || '',
+      }
     }
     usageStats.value = stats
-    return
   }
-  const stats = {}
-  for (const row of (data || [])) {
-    const pid = row.project_id
-    if (!pid) continue
-    stats[pid] = {
-      count:    Number(row.count) || 0,
-      lastDate: row.max           || '',
-    }
-  }
-  usageStats.value = stats
-}
 
-// Обновляем usageStats локально при saveCell — без лишнего запроса к БД
-function applyUsageDelta(prevPids, nextPids, dateISO) {
-  const stats = { ...usageStats.value }
-  for (const pid of prevPids) {
-    if (!nextPids.includes(pid) && stats[pid]) {
-      stats[pid] = { ...stats[pid], count: Math.max(0, stats[pid].count - 1) }
-    }
-  }
-  for (const pid of nextPids) {
-    if (!prevPids.includes(pid)) {
-      if (!stats[pid]) stats[pid] = { count: 0, lastDate: '' }
-      stats[pid] = {
-        count: stats[pid].count + 1,
-        lastDate: dateISO > stats[pid].lastDate ? dateISO : stats[pid].lastDate
+  function applyUsageDelta(prevPids, nextPids, dateISO) {
+    const stats = { ...usageStats.value }
+    for (const pid of prevPids) {
+      if (!nextPids.includes(pid) && stats[pid]) {
+        stats[pid] = { ...stats[pid], count: Math.max(0, stats[pid].count - 1) }
       }
     }
-  }
-  usageStats.value = stats
-}
-
-async function calcAllHours() {
-  if (!auth.userId) return
-  // Блокировка внутри вкладки
-  if (allHoursLoading.value) return
-  // Блокировка между вкладками: не запускаем если другая вкладка уже считает
-  if (_remoteCalcRunning) {
-    toast.error(t('errors.recalcRunning'))
-    return
+    for (const pid of nextPids) {
+      if (!prevPids.includes(pid)) {
+        if (!stats[pid]) stats[pid] = { count: 0, lastDate: '' }
+        stats[pid] = {
+          count: stats[pid].count + 1,
+          lastDate: dateISO > stats[pid].lastDate ? dateISO : stats[pid].lastDate
+        }
+      }
+    }
+    usageStats.value = stats
   }
 
-  allHoursLoading.value = true
-  const ch = _getCalcChannel()
-  ch?.postMessage('calc_start') // уведомляем другие вкладки
+  async function calcAllHours() {
+    if (!auth.userId) return
+    if (allHoursLoading.value) return
 
-  try {
-    // Загружаем все записи юзера
-    let entData = []
-    let from = 0
-    const PAGE = 1000
-    while (true) {
-      const { data, error: entErr } = await sb
-        .from('calendar_entries')
-        .select('date,slot,task_index,project_id,is_half')
+    allHoursLoading.value = true
+
+    try {
+      let entData = []
+      let from = 0
+      const PAGE = 1000
+      while (true) {
+        const { data, error: entErr } = await sb
+          .from('calendar_entries')
+          .select('date,slot,task_index,project_id,is_half')
+          .eq('user_id', auth.userId)
+          .range(from, from + PAGE - 1)
+        if (entErr) throw entErr
+        if (!data || data.length === 0) break
+        entData = entData.concat(data)
+        if (data.length < PAGE) break
+        from += PAGE
+      }
+
+      const { data: ovData, error: ovErr } = await sb
+        .from('day_overrides')
+        .select('date,is_premium')
         .eq('user_id', auth.userId)
-        .range(from, from + PAGE - 1)
-      if (entErr) throw entErr
-      if (!data || data.length === 0) break
-      entData = entData.concat(data)
-      if (data.length < PAGE) break
-      from += PAGE
-    }
+      if (ovErr) throw ovErr
 
-    // Загружаем все overrides юзера
-    const { data: ovData, error: ovErr } = await sb
-      .from('day_overrides')
-      .select('date,is_premium')
-      .eq('user_id', auth.userId)
-    if (ovErr) throw ovErr
+      const ovMap = {}
+      for (const row of (ovData || [])) ovMap[row.date] = !!row.is_premium
 
-    // Строим карту overrides
-    const ovMap = {}
-    for (const row of (ovData || [])) ovMap[row.date] = !!row.is_premium
-
-    // Группируем записи по ключу date|slot
-    const cellMap = {}
-    const halfMap = {}
-    for (const row of (entData || [])) {
-      const k = `${row.date}|${row.slot}`
-      if (!cellMap[k]) cellMap[k] = []
-      const idx = row.task_index === 2 ? 1 : 0
-      cellMap[k][idx] = row.project_id
-      if (row.task_index === 1) halfMap[k] = !!row.is_half
-    }
-
-    // Считаем часы
-    const acc = new Map()
-    for (const k in cellMap) {
-      const taskIds = cellMap[k]
-      if (!Array.isArray(taskIds) || taskIds.length === 0) continue
-      const [dateISO, slotStr] = k.split('|')
-      const slot = Number(slotStr)
-
-      const mult = calcMultiplier(dateISO, slot, ovMap)
-
-      const n = Math.min(2, taskIds.length)
-      const isHalf = !!halfMap[k] && n === 1
-      const realPer = n === 2 ? 0.25 : (isHalf ? 0.25 : 0.5)
-      const weightedPer = realPer * mult
-
-      for (let i = 0; i < n; i++) {
-        const pid = taskIds[i]
-        if (!pid) continue
-        const cur = acc.get(pid) || { real: 0, weighted: 0 }
-        cur.real += realPer
-        cur.weighted += weightedPer
-        acc.set(pid, cur)
+      const cellMap = {}
+      const halfMap = {}
+      for (const row of (entData || [])) {
+        const k = `${row.date}|${row.slot}`
+        if (!cellMap[k]) cellMap[k] = []
+        const idx = row.task_index === 2 ? 1 : 0
+        cellMap[k][idx] = row.project_id
+        if (row.task_index === 1) halfMap[k] = !!row.is_half
       }
-    }
 
-    allHoursMap.value = acc
-    allEntriesCache.value = entData
-    allOverridesCache.value = ovMap
-  } catch (e) {
-    console.error('calcAllHours error:', e)
-    toast.error(t('errors.recalcFailed'))
-  } finally {
-    allHoursLoading.value = false
-    ch?.postMessage('calc_done') // снимаем лок для других вкладок
+      const acc = new Map()
+      for (const k in cellMap) {
+        const taskIds = cellMap[k]
+        if (!Array.isArray(taskIds) || taskIds.length === 0) continue
+        const [dateISO, slotStr] = k.split('|')
+        const slot = Number(slotStr)
+
+        const mult = calcMultiplier(dateISO, slot, ovMap)
+
+        const n = Math.min(2, taskIds.length)
+        const isHalf = !!halfMap[k] && n === 1
+        const realPer = n === 2 ? 0.25 : (isHalf ? 0.25 : 0.5)
+        const weightedPer = realPer * mult
+
+        for (let i = 0; i < n; i++) {
+          const pid = taskIds[i]
+          if (!pid) continue
+          const cur = acc.get(pid) || { real: 0, weighted: 0 }
+          cur.real += realPer
+          cur.weighted += weightedPer
+          acc.set(pid, cur)
+        }
+      }
+
+      allHoursMap.value = acc
+      allEntriesCache.value = entData
+      allOverridesCache.value = ovMap
+    } catch (e) {
+      console.error('calcAllHours error:', e)
+      toast.error(t('errors.recalcFailed'))
+    } finally {
+      allHoursLoading.value = false
+    }
   }
-}
 
   function reset() {
-    savingCells.clear()
+    savingCells.value.clear()
     loadedDatesMap.clear()
+    loadedOverrideDates.clear()
     usageStats.value = {}
     entries.value = {}
     cellHalf.value = {}

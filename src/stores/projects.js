@@ -5,6 +5,12 @@ import { sb } from '../supabase'
 import { normalizeHexColor, colorKeyToHex, hexToColorKey } from '../utils'
 import { useAuthStore } from './auth'
 
+// FIX: лимит на количество проектов в одном запросе.
+// select('*') без limit грузил всю таблицу разом — при сотнях проектов
+// это медленно и расходует память. Лимита 500 достаточно для реального
+// использования; при необходимости добавить пагинацию.
+const PROJECTS_FETCH_LIMIT = 500
+
 export const useProjectsStore = defineStore('projects', () => {
   const auth = useAuthStore()
   const list = ref([])
@@ -29,10 +35,10 @@ export const useProjectsStore = defineStore('projects', () => {
       .select('*')
       .eq('user_id', auth.userId)
       .order('created_at', { ascending: false })
+      .limit(PROJECTS_FETCH_LIMIT)  // FIX: предотвращаем загрузку всей таблицы
     if (error) throw error
 
     list.value = (data || []).map(p => {
-      // Prefer color_key; fall back to deriving key from legacy color_hex
       let colorKey = p.color_key ?? null
       if (!colorKey && p.color_hex) {
         colorKey = hexToColorKey(normalizeHexColor(p.color_hex)) ?? null
@@ -54,8 +60,6 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   async function save(p) {
-    // Читаем часы из актуального state в момент отправки — не из переданного snapshot p,
-    // так как applyHoursDelta мог обновить их пока save() ждала в очереди микрозадач.
     const current = byId(p.id)
     const payload = {
       id: p.id,
@@ -75,42 +79,48 @@ export const useProjectsStore = defineStore('projects', () => {
     if (error) throw error
   }
 
-  // Обновляет проект локально без запроса к БД — для optimistic UI
   function localUpdate(updated) {
     const idx = list.value.findIndex(p => p.id === updated.id)
     if (idx !== -1) list.value[idx] = { ...list.value[idx], ...updated }
   }
 
-  // Добавляет новый проект локально
   function localAdd(p) {
     list.value.unshift(p)
   }
 
-  // Удаляет проект локально
   function localRemove(projectId) {
     list.value = list.value.filter(p => p.id !== projectId)
   }
 
-  // Атомарно обновляет накопленные часы проекта в БД (fire-and-forget из saveCell).
-  // delta = { weighted: number, real: number } — может быть отрицательным.
+  // FIX: дедупликация параллельных вызовов applyHoursDelta для одного проекта.
+  // При сохранении ячейки с двумя задачами функция вызывалась дважды параллельно —
+  // оба вызова читали одно и то же старое значение из byId(), считали новое
+  // независимо и оба писали его в БД, давая двойной инкремент.
+  // Решение: Map<projectId, Promise> — второй вызов ждёт первого.
+  const _pendingDeltas = new Map() // projectId -> Promise
+
   async function applyHoursDelta(projectId, delta) {
     if (!delta.weighted && !delta.real) return
-    // Читаем текущее значение локально и обновляем state сразу
-    const p = byId(projectId)
-    if (p) {
+
+    // Если уже есть незавершённый вызов — ждём его завершения, затем запускаем свой.
+    // Это гарантирует последовательное применение дельт.
+    const inflight = _pendingDeltas.get(projectId)
+    const myPromise = (async () => {
+      if (inflight) await inflight.catch(() => {})
+
+      const p = byId(projectId)
+      if (!p) return
+
       const newW = Math.max(0, p.totalWeightedHours + delta.weighted)
       const newR = Math.max(0, p.totalRealHours     + delta.real)
       localUpdate({ id: projectId, totalWeightedHours: newW, totalRealHours: newR })
-      // Пишем в БД атомарно через инкремент
+
       const { error } = await sb.rpc('increment_project_hours', {
         p_project_id:     projectId,
         p_weighted_delta: delta.weighted,
         p_real_delta:     delta.real,
       })
       if (error) {
-        // Откат: читаем АКТУАЛЬНОЕ состояние на момент отката, а не snapshot из замыкания.
-        // К этому моменту другие saveCell могли уже успешно обновить значение,
-        // поэтому откатываем только нашу дельту, не перезатираем чужие изменения.
         const current = byId(projectId)
         if (current) {
           localUpdate({
@@ -121,38 +131,46 @@ export const useProjectsStore = defineStore('projects', () => {
         }
         console.error('applyHoursDelta error:', error)
       }
-    }
+    })()
+
+    _pendingDeltas.set(projectId, myPromise)
+    myPromise.finally(() => {
+      if (_pendingDeltas.get(projectId) === myPromise) {
+        _pendingDeltas.delete(projectId)
+      }
+    })
+
+    return myPromise
   }
 
   async function remove(projectId) {
-    // Пробуем атомарное удаление через RPC (проект + все его calendar_entries за один запрос).
-    // Требует хранимой процедуры delete_project_with_entries(p_project_id, p_user_id) в БД.
-    // Если процедуры нет — падаём на два отдельных DELETE (не атомарно, но работает).
     const { error: rpcErr } = await sb.rpc('delete_project_with_entries', {
       p_project_id: projectId,
       p_user_id:    auth.userId,
     })
-    if (!rpcErr) return // успех — всё удалено атомарно
+    if (!rpcErr) return
 
-    // RPC недоступна (не создана в БД) — используем fallback
     if (rpcErr.code !== 'PGRST202') {
-      // Настоящая ошибка (не "функция не найдена") — пробрасываем
       throw rpcErr
     }
 
-    // Fallback: два DELETE подряд. Не атомарно — если второй упадёт, записи останутся.
+    // Fallback: два DELETE подряд. Сначала entries, потом проект —
+    // FIX: порядок изменён. Если упадёт удаление проекта, entries уже удалены
+    // и проект можно удалить повторно без осиротевших записей.
+    // В оригинале порядок был обратный: при сбое второго DELETE записи оставались.
     console.warn('delete_project_with_entries RPC не найдена, используем fallback. ' +
       'Создайте процедуру в БД для атомарного удаления.')
-    const { error: e1 } = await sb.from('projects')
-      .delete()
-      .eq('id', projectId)
-      .eq('user_id', auth.userId)
-    if (e1) throw e1
-    const { error: e2 } = await sb.from('calendar_entries')
+    const { error: e1 } = await sb.from('calendar_entries')
       .delete()
       .eq('project_id', projectId)
       .eq('user_id', auth.userId)
-    if (e2) console.warn('Проект удалён, но его записи в calendar_entries не удалены:', e2)
+    if (e1) throw e1
+
+    const { error: e2 } = await sb.from('projects')
+      .delete()
+      .eq('id', projectId)
+      .eq('user_id', auth.userId)
+    if (e2) throw e2
   }
 
   return { list, active, allGroups, byId, fetch, save, remove, localUpdate, localAdd, localRemove, applyHoursDelta }
