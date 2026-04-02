@@ -107,7 +107,7 @@ watch(() => auth.isAuthed, async (authed) => {
           <template v-if="auth.isAuthed">
             <button class="profile-btn" @click="showProfile = true">
               <span class="profile-btn-icon">◉</span>
-              <span class="profile-btn-text">Профиль</span>
+              <span class="profile-btn-text">{{ t('profile.title') }}</span>
             </button>
           </template>
         </div>
@@ -115,7 +115,7 @@ watch(() => auth.isAuthed, async (authed) => {
 
       <div v-if="appLoading" class="app-loading-overlay">
         <div class="app-loading-spinner"></div>
-        <div class="app-loading-text">Загрузка данных…</div>
+        <div class="app-loading-text">{{ t('state.loadingData') }}</div>
       </div>
 
       <div v-show="activeTab === 'tab1'" class="panel active">

@@ -62,7 +62,7 @@ defineExpose({ open })
             <span class="m-icon" :class="isDanger ? 'm-icon-danger' : 'm-icon-warn'">{{ isDanger ? '⚠' : '📦' }}</span>
             <span class="m-title">{{ title }}</span>
           </div>
-          <button class="m-close" title="Закрыть (Esc)" @click="cancel">✕</button>
+          <button class="m-close" :title="t('btn.close')" @click="cancel">✕</button>
         </div>
 
         <!-- Body -->

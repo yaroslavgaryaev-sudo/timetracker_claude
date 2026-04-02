@@ -30,7 +30,7 @@ const { t } = useI18n()
 
       <div class="st-row st-row-border">
         <div class="st-row-label">
-          <div class="st-label">Язык / Language</div>
+          <div class="st-label">{{ t('settings.language') }}</div>
         </div>
         <div class="st-theme-btns">
           <button class="st-theme-btn" :class="{ active: locale === 'ru' }" @click="setLocale('ru')">🇷🇺 Русский</button>

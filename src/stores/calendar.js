@@ -330,8 +330,6 @@ export const useCalendarStore = defineStore('calendar', () => {
 
   const allHoursMap = ref(new Map())
   const allHoursLoading = ref(false)
-  const allEntriesCache = ref([])
-  const allOverridesCache = ref({})
 
   // FIX: BroadcastChannel удалён как ненадёжный лок.
   // При закрытии вкладки в середине calc_done никогда не отправлялся,
@@ -343,38 +341,15 @@ export const useCalendarStore = defineStore('calendar', () => {
 
   async function loadUsageStats() {
     if (!auth.userId) return
-    const { data, error } = await sb
-      .from('calendar_entries')
-      .select('project_id.count(), date.max()')
-      .eq('user_id', auth.userId)
-      .not('project_id', 'is', null)
-    if (error) {
-      const { data: raw, error: rawErr } = await sb
-        .from('calendar_entries')
-        .select('project_id, date')
-        .eq('user_id', auth.userId)
-        .not('project_id', 'is', null)
-        .order('date', { ascending: false })
-        .limit(500)
-      if (rawErr) { console.error('loadUsageStats:', rawErr); return }
-      const stats = {}
-      for (const row of (raw || [])) {
-        const pid = row.project_id
-        if (!pid) continue
-        if (!stats[pid]) stats[pid] = { count: 0, lastDate: '' }
-        stats[pid].count++
-        if (row.date > stats[pid].lastDate) stats[pid].lastDate = row.date
-      }
-      usageStats.value = stats
-      return
-    }
+    // Серверная агрегация — один RPC вместо клиентского подсчёта
+    const { data, error } = await sb.rpc('get_usage_stats')
+    if (error) { console.error('loadUsageStats:', error); return }
+
     const stats = {}
     for (const row of (data || [])) {
-      const pid = row.project_id
-      if (!pid) continue
-      stats[pid] = {
-        count:    Number(row.count) || 0,
-        lastDate: row.max           || '',
+      stats[row.project_id] = {
+        count:    Number(row.usage_count) || 0,
+        lastDate: row.last_date           || '',
       }
     }
     usageStats.value = stats
@@ -406,68 +381,19 @@ export const useCalendarStore = defineStore('calendar', () => {
     allHoursLoading.value = true
 
     try {
-      let entData = []
-      let from = 0
-      const PAGE = 1000
-      while (true) {
-        const { data, error: entErr } = await sb
-          .from('calendar_entries')
-          .select('date,slot,task_index,project_id,is_half')
-          .eq('user_id', auth.userId)
-          .range(from, from + PAGE - 1)
-        if (entErr) throw entErr
-        if (!data || data.length === 0) break
-        entData = entData.concat(data)
-        if (data.length < PAGE) break
-        from += PAGE
-      }
-
-      const { data: ovData, error: ovErr } = await sb
-        .from('day_overrides')
-        .select('date,is_premium')
-        .eq('user_id', auth.userId)
-      if (ovErr) throw ovErr
-
-      const ovMap = {}
-      for (const row of (ovData || [])) ovMap[row.date] = !!row.is_premium
-
-      const cellMap = {}
-      const halfMap = {}
-      for (const row of (entData || [])) {
-        const k = `${row.date}|${row.slot}`
-        if (!cellMap[k]) cellMap[k] = []
-        const idx = row.task_index === 2 ? 1 : 0
-        cellMap[k][idx] = row.project_id
-        if (row.task_index === 1) halfMap[k] = !!row.is_half
-      }
+      // Серверная агрегация — один лёгкий RPC вместо загрузки всех записей
+      const { data, error } = await sb.rpc('aggregate_hours_by_project')
+      if (error) throw error
 
       const acc = new Map()
-      for (const k in cellMap) {
-        const taskIds = cellMap[k]
-        if (!Array.isArray(taskIds) || taskIds.length === 0) continue
-        const [dateISO, slotStr] = k.split('|')
-        const slot = Number(slotStr)
-
-        const mult = calcMultiplier(dateISO, slot, ovMap)
-
-        const n = Math.min(2, taskIds.length)
-        const isHalf = !!halfMap[k] && n === 1
-        const realPer = n === 2 ? 0.25 : (isHalf ? 0.25 : 0.5)
-        const weightedPer = realPer * mult
-
-        for (let i = 0; i < n; i++) {
-          const pid = taskIds[i]
-          if (!pid) continue
-          const cur = acc.get(pid) || { real: 0, weighted: 0 }
-          cur.real += realPer
-          cur.weighted += weightedPer
-          acc.set(pid, cur)
-        }
+      for (const row of (data || [])) {
+        acc.set(row.project_id, {
+          real:     row.total_real     || 0,
+          weighted: row.total_weighted || 0,
+        })
       }
 
       allHoursMap.value = acc
-      allEntriesCache.value = entData
-      allOverridesCache.value = ovMap
     } catch (e) {
       console.error('calcAllHours error:', e)
       toast.error(t('errors.recalcFailed'))
@@ -485,13 +411,10 @@ export const useCalendarStore = defineStore('calendar', () => {
     cellHalf.value = {}
     dayOverrides.value = {}
     allHoursMap.value = new Map()
-    allEntriesCache.value = []
-    allOverridesCache.value = {}
   }
 
   return {
     allHoursMap, allHoursLoading, calcAllHours,
-    allEntriesCache, allOverridesCache,
     usageStats, loadUsageStats,
     currentWeekStart, entries, cellHalf, dayOverrides,
     columns, slots, todayISO,

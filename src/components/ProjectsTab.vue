@@ -209,9 +209,9 @@ function onColorPick(hex) {
 async function onMobilePaidChange(p) {
   if (!p.paid) {
     const confirmed = await confirmDeleteModal.value.open(p.name, {
-      title:        'Отправить проект в архив',
-      bodyPrefix:   'Отправить проект',
-      bodySuffix:   ' в архив?',
+      title:        t('confirm.archiveProject'),
+      bodyPrefix:   t('confirm.archiveProjectBody'),
+      bodySuffix:   t('confirm.archiveProjectSuffix'),
       subtext:      '',
       confirmLabel: t('projects.archiveTitle'),
       danger:       false,
@@ -407,7 +407,7 @@ async function onMobilePaidChange(p) {
           <!-- Статистика -->
           <div class="pt-card-stats">
             <div class="pt-card-stat">
-              <span class="pt-card-stat-label">Часы</span>
+              <span class="pt-card-stat-label">{{ t('projects.colHours') }}</span>
               <span class="mono">{{ fmtHours(hoursFor(p).real) }} / {{ fmtHours(hoursFor(p).weighted) }}</span>
             </div>
             <div class="pt-card-stat">

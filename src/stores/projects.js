@@ -5,11 +5,8 @@ import { sb } from '../supabase'
 import { normalizeHexColor, colorKeyToHex, hexToColorKey } from '../utils'
 import { useAuthStore } from './auth'
 
-// FIX: лимит на количество проектов в одном запросе.
-// select('*') без limit грузил всю таблицу разом — при сотнях проектов
-// это медленно и расходует память. Лимита 500 достаточно для реального
-// использования; при необходимости добавить пагинацию.
-const PROJECTS_FETCH_LIMIT = 500
+// Размер страницы для пагинированной загрузки проектов
+const PROJECTS_PAGE_SIZE = 500
 
 export const useProjectsStore = defineStore('projects', () => {
   const auth = useAuthStore()
@@ -29,34 +26,45 @@ export const useProjectsStore = defineStore('projects', () => {
     return list.value.find(p => p.id === id) ?? null
   }
 
-  async function fetch() {
-    const { data, error } = await sb
-      .from('projects')
-      .select('*')
-      .eq('user_id', auth.userId)
-      .order('created_at', { ascending: false })
-      .limit(PROJECTS_FETCH_LIMIT)  // FIX: предотвращаем загрузку всей таблицы
-    if (error) throw error
+  function _mapRow(p) {
+    let colorKey = p.color_key ?? null
+    if (!colorKey && p.color_hex) {
+      colorKey = hexToColorKey(normalizeHexColor(p.color_hex)) ?? null
+    }
+    return {
+      id: p.id,
+      name: p.name,
+      group: p.group_name ?? '',
+      color: colorKey,
+      budget: Number(p.budget ?? 0),
+      comment: p.comment ?? '',
+      paid: !!p.paid,
+      archived: !!p.archived,
+      createdAt: new Date(p.created_at).getTime(),
+      totalWeightedHours: Number(p.total_weighted_hours ?? 0),
+      totalRealHours:     Number(p.total_real_hours     ?? 0),
+    }
+  }
 
-    list.value = (data || []).map(p => {
-      let colorKey = p.color_key ?? null
-      if (!colorKey && p.color_hex) {
-        colorKey = hexToColorKey(normalizeHexColor(p.color_hex)) ?? null
-      }
-      return {
-        id: p.id,
-        name: p.name,
-        group: p.group_name ?? '',
-        color: colorKey,
-        budget: Number(p.budget ?? 0),
-        comment: p.comment ?? '',
-        paid: !!p.paid,
-        archived: !!p.archived,
-        createdAt: new Date(p.created_at).getTime(),
-        totalWeightedHours: Number(p.total_weighted_hours ?? 0),
-        totalRealHours:     Number(p.total_real_hours     ?? 0),
-      }
-    })
+  async function fetch() {
+    // Пагинированная загрузка — гарантирует, что все проекты будут получены
+    let all = []
+    let from = 0
+    while (true) {
+      const { data, error } = await sb
+        .from('projects')
+        .select('*')
+        .eq('user_id', auth.userId)
+        .order('created_at', { ascending: false })
+        .range(from, from + PROJECTS_PAGE_SIZE - 1)
+      if (error) throw error
+      if (!data || data.length === 0) break
+      all = all.concat(data)
+      if (data.length < PROJECTS_PAGE_SIZE) break
+      from += PROJECTS_PAGE_SIZE
+    }
+
+    list.value = all.map(_mapRow)
   }
 
   async function save(p) {
@@ -144,33 +152,11 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   async function remove(projectId) {
-    const { error: rpcErr } = await sb.rpc('delete_project_with_entries', {
+    const { error } = await sb.rpc('delete_project_with_entries', {
       p_project_id: projectId,
       p_user_id:    auth.userId,
     })
-    if (!rpcErr) return
-
-    if (rpcErr.code !== 'PGRST202') {
-      throw rpcErr
-    }
-
-    // Fallback: два DELETE подряд. Сначала entries, потом проект —
-    // FIX: порядок изменён. Если упадёт удаление проекта, entries уже удалены
-    // и проект можно удалить повторно без осиротевших записей.
-    // В оригинале порядок был обратный: при сбое второго DELETE записи оставались.
-    console.warn('delete_project_with_entries RPC не найдена, используем fallback. ' +
-      'Создайте процедуру в БД для атомарного удаления.')
-    const { error: e1 } = await sb.from('calendar_entries')
-      .delete()
-      .eq('project_id', projectId)
-      .eq('user_id', auth.userId)
-    if (e1) throw e1
-
-    const { error: e2 } = await sb.from('projects')
-      .delete()
-      .eq('id', projectId)
-      .eq('user_id', auth.userId)
-    if (e2) throw e2
+    if (error) throw error
   }
 
   return { list, active, allGroups, byId, fetch, save, remove, localUpdate, localAdd, localRemove, applyHoursDelta }

@@ -32,7 +32,7 @@ const baseLabel = computed(() => weekendDefault.value ? t('day.defaultOff') : t(
 const toggleLabel = computed(() => effectivePremium.value ? t('day.makeWork') : t('day.makeOff'))
 
 function open(d) {
-  if (!auth.isAuthed) { toast.warn('Сначала войди по e-mail.'); return }
+  if (!auth.isAuthed) { toast.warn(t('errors.needLogin')); return }
   dateISO.value = d
   visible.value = true
 }
@@ -88,7 +88,7 @@ defineExpose({ open })
             <span class="m-icon">◈</span>
             <span class="m-title">{{ t('day.dayOff') }} / {{ t('day.workDay') }}</span>
           </div>
-          <button class="m-close" title="Закрыть (Esc)" @click="close">✕</button>
+          <button class="m-close" :title="t('btn.close')" @click="close">✕</button>
         </div>
 
         <div class="m-meta">{{ metaText }}</div>
@@ -102,7 +102,7 @@ defineExpose({ open })
               <span class="dm-status-mult">{{ effectivePremium ? t('day.premiumAllDay') : t('day.premiumHours') }}</span>
             </div>
             <div class="dm-base-label">{{ baseLabel }}</div>
-            <div v-if="hasOverride" class="dm-override-badge">переопределён вручную</div>
+            <div v-if="hasOverride" class="dm-override-badge">{{ t('day.overridden') }}</div>
           </div>
         </div>
 

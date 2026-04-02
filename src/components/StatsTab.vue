@@ -62,90 +62,26 @@ async function loadYear(year) {
   loading.value = true
   statsError.value = ''
   try {
-    const dateFrom = `${year}-01-01`
-    const dateTo   = `${year}-12-31`
-
-    // Загружаем calendar_entries постранично (как в calcAllHours) —
-    // у активного пользователя за год может быть 5–15k строк.
-    const PAGE = 1000
-    let entData = []
-    let from = 0
-    while (true) {
-      const { data, error: entErr } = await sb
-        .from('calendar_entries')
-        .select('date,slot,task_index,project_id,is_half')
-        .eq('user_id', auth.userId)
-        .gte('date', dateFrom)
-        .lte('date', dateTo)
-        .range(from, from + PAGE - 1)
-      if (entErr) throw entErr
-      if (!data || data.length === 0) break
-      entData = entData.concat(data)
-      if (data.length < PAGE) break
-      from += PAGE
-    }
-
-    // day_overrides за год — обычно не более 365 строк, пагинация не нужна
-    const { data: ovData, error: ovErr } = await sb
-      .from('day_overrides')
-      .select('date,is_premium')
-      .eq('user_id', auth.userId)
-      .gte('date', dateFrom)
-      .lte('date', dateTo)
-    if (ovErr) throw ovErr
-
-    const ovMap = {}
-    for (const row of (ovData || [])) ovMap[row.date] = !!row.is_premium
-
-    const cellMap = {}
-    const halfMap = {}
-    for (const row of (entData || [])) {
-      const k = `${row.date}|${row.slot}`
-      if (!cellMap[k]) cellMap[k] = []
-      cellMap[k][row.task_index === 2 ? 1 : 0] = row.project_id
-      if (row.task_index === 1) halfMap[k] = !!row.is_half
-    }
+    // Серверная агрегация — один RPC вместо загрузки тысяч строк
+    const { data, error } = await sb.rpc('aggregate_hours_by_year_month', { p_year: year })
+    if (error) throw error
 
     const monthAcc = {}
-    for (const k in cellMap) {
-      const taskIds = cellMap[k]
-      if (!Array.isArray(taskIds) || taskIds.length === 0) continue
-      const [dateISO, slotStr] = k.split('|')
-      const slot = Number(slotStr)
-      const ym = dateISO.slice(0, 7)
-
-      const ov = ovMap[dateISO]
-      const isWeekend = (() => { const d = new Date(dateISO + 'T00:00:00').getDay(); return d === 0 || d === 6 })()
-      let mult = 1.0
-      if (ov === true || (ov === undefined && isWeekend)) {
-        mult = 1.5
-      } else if (ov !== false) {
-        const hour = ((slot * 30) % 1440) / 60
-        if (hour < 10 || hour >= 19) mult = 1.5
-      }
-
-      const n = Math.min(2, taskIds.length)
-      const isHalf = !!halfMap[k] && n === 1
-      const realPer = n === 2 ? 0.25 : (isHalf ? 0.25 : 0.5)
-      const weightedPer = realPer * mult
-
-      if (!monthAcc[ym]) monthAcc[ym] = new Map()
-      for (let i = 0; i < n; i++) {
-        const pid = taskIds[i]
-        if (!pid) continue
-        monthAcc[ym].set(pid, (monthAcc[ym].get(pid) || 0) + weightedPer)
-      }
+    for (const row of (data || [])) {
+      const ym = row.year_month
+      if (!monthAcc[ym]) monthAcc[ym] = []
+      const p = proj.byId(row.project_id)
+      monthAcc[ym].push({
+        id: row.project_id,
+        name: p ? p.name : `[${row.project_id.slice(0, 6)}]`,
+        hours: row.weighted_hours || 0,
+        isFree: !p || p.budget === 0,
+      })
     }
 
     const months = []
     for (const ym of Object.keys(monthAcc).sort()) {
-      const monthIdx = Number(ym.split('-')[1]) - 1
-      const projects = []
-      for (const [pid, hours] of monthAcc[ym]) {
-        const p = proj.byId(pid)
-        projects.push({ id: pid, name: p ? p.name : `[${pid.slice(0, 6)}]`, hours, isFree: !p || p.budget === 0 })
-      }
-      months.push({ yearMonth: ym, projects })
+      months.push({ yearMonth: ym, projects: monthAcc[ym] })
     }
 
     yearCache.value = { ...yearCache.value, [year]: { months } }
